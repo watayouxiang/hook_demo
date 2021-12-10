@@ -4,6 +4,16 @@
     <asm skipDebug="true" skipFrames="true" skipCode="false" expandFrames="false" />
     <groovy codeStyle="LEGACY" />
   </component>
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="app/src/main/res/layout/activity_login.xml" value="0.28229166666666666" />
+        <entry key="app/src/main/res/layout/activity_main.xml" value="0.2682291666666667" />
+        <entry key="app/src/main/res/layout/test_activity_one.xml" value="0.28229166666666666" />
+        <entry key="app/src/main/res/layout/test_activity_two.xml" value="0.28229166666666666" />
+      </map>
+    </option>
+  </component>
   <component name="FindBugsConfigurable">
     <option name="make" value="true" />
     <option name="effort" value="default" />
