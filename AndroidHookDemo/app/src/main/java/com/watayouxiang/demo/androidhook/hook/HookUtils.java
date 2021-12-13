@@ -34,24 +34,25 @@ public class HookUtils {
     }
 
     // ====================================================================================
-    //
+    // hook 修改 startActivity
     // ====================================================================================
 
     public void hookAms() throws Exception {
-        // 1、Singleton<IActivityManager>
+        // 1、拿到 Singleton<IActivityManager> IActivityManagerSingleton
         Class ActivityManagerClz = Class.forName("android.app.ActivityManager");
         Field IActivityManagerSingletonFiled = ActivityManagerClz.getDeclaredField("IActivityManagerSingleton");
         IActivityManagerSingletonFiled.setAccessible(true);
         Object IActivityManagerSingletonObj = IActivityManagerSingletonFiled.get(null);
 
-        // 2、IActivityManager
+        // 2、拿到 IActivityManager
+        // /frameworks/base/core/java/android/app/IActivityManager.aidl
         Class SingletonClz = Class.forName("android.util.Singleton");
         Field mInstanceField = SingletonClz.getDeclaredField("mInstance");
         mInstanceField.setAccessible(true);
         Object IActivityManagerObj = mInstanceField.get(IActivityManagerSingletonObj);
-
-        // 3、动态代理
         Class IActivityManagerClz = Class.forName("android.app.IActivityManager");
+
+        // 3、动态代理 IActivityManager
         Object proxyIActivityManager = Proxy.newProxyInstance(
                 // 类加载器
                 Thread.currentThread().getContextClassLoader(),
@@ -60,7 +61,6 @@ public class HookUtils {
                 // 代理
                 new AmsInvocationHandler(IActivityManagerObj)
         );
-        mInstanceField.setAccessible(true);
         mInstanceField.set(IActivityManagerSingletonObj, proxyIActivityManager);
     }
 
@@ -79,7 +79,7 @@ public class HookUtils {
                 for (int i = 0; i < args.length; i++) {
                     Object arg = args[i];
                     if (arg instanceof Intent) {
-                        intent = (Intent) args[i]; // 原意图，过不了安检
+                        intent = (Intent) args[i];
                         index = i;
                         break;
                     }
@@ -95,21 +95,22 @@ public class HookUtils {
     }
 
     // ====================================================================================
-    //
+    // hook 修改 Handler
     // ====================================================================================
 
     public void hookSystemHandler() throws Exception {
-
+        // 1、拿到 ActivityThread
         Class ActivityThreadClz = Class.forName("android.app.ActivityThread");
         Field field = ActivityThreadClz.getDeclaredField("sCurrentActivityThread");
         field.setAccessible(true);
         Object ActivityThreadObj = field.get(null);
-        ActivityThreadObj.hashCode();
 
+        // 2、拿到系统 Handler
         Field mHField = ActivityThreadClz.getDeclaredField("mH");
         mHField.setAccessible(true);
-        Handler mHObj = (Handler) mHField.get(ActivityThreadObj);//ok，当前的mH拿到了
+        Handler mHObj = (Handler) mHField.get(ActivityThreadObj);
 
+        // 3、修改 Handler 的 mCallback
         Field mCallbackField = Handler.class.getDeclaredField("mCallback");
         mCallbackField.setAccessible(true);
         ProxyHandlerCallback proxyMHCallback = new ProxyHandlerCallback();
@@ -122,51 +123,39 @@ public class HookUtils {
 
         @Override
         public boolean handleMessage(Message msg) {
-
-            Log.i("david", "handleMessage: " + msg.what);
-
-            if (msg.what == 159) {
-
-                Log.i("david", "---->: " + msg.obj.getClass().toString());
+            if (msg.what == EXECUTE_TRANSACTION) {
                 try {
                     Class ClientTransactionClz = Class.forName("android.app.servertransaction.ClientTransaction");
                     if (!ClientTransactionClz.isInstance(msg.obj)) return false;
 
-                    Class LaunchActivityItemClz = Class.forName("android.app.servertransaction.LaunchActivityItem");
-
-                    Field mActivityCallbacksField = ClientTransactionClz.getDeclaredField("mActivityCallbacks");//ClientTransaction的成员
-//设值可访问
+                    Field mActivityCallbacksField = ClientTransactionClz.getDeclaredField("mActivityCallbacks");
                     mActivityCallbacksField.setAccessible(true);
                     Object mActivityCallbacksObj = mActivityCallbacksField.get(msg.obj);
+
                     List list = (List) mActivityCallbacksObj;
                     if (list.size() == 0) return false;
+
                     Object LaunchActivityItemObj = list.get(0);
+                    Class LaunchActivityItemClz = Class.forName("android.app.servertransaction.LaunchActivityItem");
                     if (!LaunchActivityItemClz.isInstance(LaunchActivityItemObj)) return false;
 
-//                    startActivity  一定是
                     Field mIntentField = LaunchActivityItemClz.getDeclaredField("mIntent");
                     mIntentField.setAccessible(true);
                     Intent mIntent = (Intent) mIntentField.get(LaunchActivityItemObj);
                     Intent realIntent = mIntent.getParcelableExtra("oldIntent");
                     if (realIntent != null) {
-//                        SecondActivity
-//                        登录判断
-                        SharedPreferences share = context.getSharedPreferences("test",
-                                Context.MODE_PRIVATE);
-                        if (share.getBoolean("login", false)) {
+                        SharedPreferences preferences = context.getSharedPreferences("test", Context.MODE_PRIVATE);
+                        if (preferences.getBoolean("login", false)) {
                             mIntent.setComponent(realIntent.getComponent());
                         } else {
+                            mIntent.putExtra("extraIntent", realIntent.getComponent().getClassName());
                             ComponentName componentName = new ComponentName(context, LoginActivity.class);
-                            mIntent.putExtra("extraIntent", realIntent.getComponent()
-                                    .getClassName());
                             mIntent.setComponent(componentName);
                         }
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
-
             }
             return false;
         }
