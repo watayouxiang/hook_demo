@@ -125,17 +125,20 @@ public class HookUtils {
         public boolean handleMessage(Message msg) {
             if (msg.what == EXECUTE_TRANSACTION) {
                 try {
+                    // ClientTransaction
                     Class ClientTransactionClz = Class.forName("android.app.servertransaction.ClientTransaction");
                     if (!ClientTransactionClz.isInstance(msg.obj)) return false;
 
+                    // ClientTransaction # List<ClientTransactionItem> mActivityCallbacks;
                     Field mActivityCallbacksField = ClientTransactionClz.getDeclaredField("mActivityCallbacks");
                     mActivityCallbacksField.setAccessible(true);
                     Object mActivityCallbacksObj = mActivityCallbacksField.get(msg.obj);
 
                     List list = (List) mActivityCallbacksObj;
                     if (list.size() == 0) return false;
-
                     Object LaunchActivityItemObj = list.get(0);
+
+                    // LaunchActivityItem
                     Class LaunchActivityItemClz = Class.forName("android.app.servertransaction.LaunchActivityItem");
                     if (!LaunchActivityItemClz.isInstance(LaunchActivityItemObj)) return false;
 
